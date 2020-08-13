@@ -1,4 +1,4 @@
-blauwe-lucht.docker_webapps
+blauwe_lucht.docker_webapps
 =========
 
 Ansible role to run multiple webapps on https on a single Docker host,
@@ -93,7 +93,7 @@ Example Playbook
 ```yaml
 - hosts: servers
   roles:
-  - name: blauwe-lucht/docker_webapps
+  - name: blauwe_lucht/docker_webapps
     vars:
       docker_webapps:
       - name: samtris
