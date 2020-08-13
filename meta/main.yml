@@ -21,10 +21,12 @@ galaxy_info:
   galaxy_tags:
     - docker
     - web
-    - reverse-proxy
+    - reverseproxy
     - website
     - webapp
     - https
     - ssl
-    - lets-encrypt
-    - self-signed
+    - letsencrypt
+    - selfsigned
+    - nginx
+    - certbot
