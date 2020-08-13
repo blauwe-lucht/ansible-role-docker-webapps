@@ -1,0 +1,113 @@
+---
+- name: Set vars fqdn and force_renew_lets_encrypt_certificate ({{ site.name }}).
+  set_fact:
+    fqdn: "{{ site.name }}.{{ docker_webapps_domain_name }}"
+    # To force an update of a specific Let's Encrypt certificate,
+    # add --extra-vars='force_renew_lets_encrypt_certificate="site name"'
+    # to the ansible-playbook command line arguments.
+    force_renew_lets_encrypt_certificate: ""
+    certbot_container_name: docker_webapps_certbot
+
+- name: Check if certbot certificate directory exists for {{ fqdn }}.
+  # We use this as a marker to check if we need to initialize a new site.
+  # To completely remove the certificate, execute
+  #   certbot delete --cert-name {{ fqdn }}
+  # in the certbot container, otherwise some history will stick around and you will get new certificates with a
+  # -0001 prefix which will not be found by nginx.
+  # IMPORTANT: only refresh one certificate at a time, otherwise nginx will fail to start because one of the sites
+  # has a missing SSL certificate while the conf still specifies one. (I haven't figured out a way to fix this yet).
+  stat:
+    path: /var/lib/certbot/conf/live/{{ fqdn }}
+  register: certbot_cert_dir_stat_result
+
+- name: Set fact needs_certbot_update ({{ site.name }}).
+  set_fact:
+    need_certbot_update: "{{ (not certbot_cert_dir_stat_result.stat.exists) or \
+                             (force_renew_lets_encrypt_certificate == site.name) }}"
+
+- block: # when: need_certbot_update
+  - name: Generate an OpenSSL private key for {{ fqdn }}.
+    openssl_privatekey:
+      path: /var/ssl/self-signed/private/{{ fqdn }}.pem
+
+  - name: Generate an OpenSSL Certificate Signing Request for {{ fqdn }}.
+    openssl_csr:
+      path: /var/ssl/self-signed/csr/{{ fqdn }}.csr
+      privatekey_path: /var/ssl/self-signed/private/{{ fqdn }}.pem
+      country_name: "{{ docker_webapps_country_name }}"
+      organization_name: "{{ docker_webapps_organization_name }} "
+      email_address: "{{ docker_webapps_email_address }}"
+      common_name: "{{ fqdn }}"
+
+  - name: Generate a self signed certificate for {{ fqdn }}.
+    openssl_certificate:
+      path: /var/ssl/self-signed/certs/{{ fqdn }}.crt
+      privatekey_path: /var/ssl/self-signed/private/{{ fqdn }}.pem
+      csr_path: /var/ssl/self-signed/csr/{{ fqdn }}.csr
+      provider: selfsigned
+    register: openssl_certificate_result
+
+  - name: Copy site-specific self-signed-SSL nginx configuration for {{ fqdn }}.
+    template:
+      src: nginx/site-self-signed-ssl.conf.j2
+      dest: /var/lib/nginx/conf.d/{{ fqdn }}.conf
+    vars:
+      domain: "{{ docker_webapps_domain_name }}"
+    register: copy_conf_result
+
+  - name: Restart nginx ({{ site.name }}).
+    docker_compose:
+      project_src: /root/webapps
+      services: "{{ docker_webapps_reverse_proxy_container_name }}"
+      restarted: yes
+    when: openssl_certificate_result.changed or copy_conf_result.changed
+
+  - name: Wait for nginx ({{ site.name }}).
+    wait_for: port=80
+
+  - block: # when: docker_webapps_use_lets_encrypt
+    - name: Request Let's Encrypt certificate for {{ fqdn }}.
+      docker_container:
+        name: "{{ certbot_container_name }}"
+        image: certbot/certbot
+        state: started
+        # Do not run detached so we can wait for the process to finish and ansible will fail if the exit code is not 0.
+        detach: no
+        command: "certonly --webroot --webroot-path /var/www/certbot \
+          --email {{ docker_webapps_email_address }} --cert-name {{ fqdn }} \
+          -d {{ fqdn }} --rsa-key-size 4096 \
+          {{ docker_webapps_certbot_staging_param }} \
+          --agree-tos --force-renewal"
+        volumes:
+        - "/var/lib/certbot/conf:/etc/letsencrypt"
+        - "/var/lib/certbot/www:/var/www/certbot"
+        - "/var/log/certbot:/var/log/letsencrypt"
+    always:
+    - name: Remove Let's Encrypt container for {{ fqdn }}.
+      docker_container:
+        name: "{{ certbot_container_name }}"
+        state: absent
+    when: docker_webapps_use_lets_encrypt
+
+  when: need_certbot_update
+
+- block: # when: docker_webapps_use_lets_encrypt
+  - name: Copy site-specific SSL nginx configuration for {{ fqdn }}.
+    template:
+      src: nginx/site-ssl.conf.j2
+      dest: /var/lib/nginx/conf.d/{{ fqdn }}.conf
+    vars:
+      domain: "{{ docker_webapps_domain_name }}"
+    register: copy_ssl_config_result
+
+  - name: Restart nginx with real certificate for {{ fqdn }}.
+    docker_compose:
+      project_src: /root/webapps
+      services: "{{ docker_webapps_reverse_proxy_container_name }}"
+      restarted: yes
+    when: copy_ssl_config_result.changed or need_certbot_update
+
+  - name: Wait for nginx ({{ site.name }}).
+    wait_for: port=80
+
+  when: docker_webapps_use_lets_encrypt

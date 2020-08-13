@@ -1,0 +1,59 @@
+---
+- block:
+  - name: Check if Docker is present.
+    command: docker --version
+    changed_when: false
+
+  - name: Generate Docker Compose file for websites.
+    template:
+      src: docker-compose.yml.j2
+      dest: /root/webapps/docker-compose.yml
+
+  - name: Create and run web applications using Docker Compose.
+    docker_compose:
+      project_src: /root/webapps
+      build: yes
+      remove_orphans: yes
+      project_name: "{{ docker_webapps_docker_compose_project }}"
+      state: present
+
+  - name: Create shared nginx directories.
+    file:
+      path: "{{ item }}"
+      state: directory
+      mode: 0755
+      group: root
+      owner: root
+    with_items:
+    # The challenge response will be served by nginx from here:
+    - /var/lib/certbot/www
+    # Certbot will put its log files here:
+    - /var/log/certbot
+    # Certbot will put the certicates here:
+    - /var/lib/certbot/conf
+    # The site-specific nginx configuration files go here.
+    - /var/lib/nginx/conf.d
+    # Self-signed certificates.
+    - /var/ssl/self-signed/private
+    - /var/ssl/self-signed/csr
+    - /var/ssl/self-signed/certs
+    - /var/ssl/self-signed/dhparams
+
+  # From https://gist.github.com/ezhulkov/355fff964e54ffed541ed09e80341fd0
+  - name: Copy Let's Encrypt nginx configuration files.
+    copy:
+      src: "{{ item }}"
+      dest: /var/lib/certbot/conf/
+      owner: root
+      group: root
+      mode: 0644
+    with_items:
+    - certbot/options-ssl-nginx.conf
+    - certbot/ssl-dhparams.pem
+
+  - include: _ssl-site.yml
+    loop: "{{ docker_webapps }}"
+    loop_control:
+      loop_var: site
+
+  tags: webapps

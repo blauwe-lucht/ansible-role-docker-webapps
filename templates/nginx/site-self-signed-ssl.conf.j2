@@ -1,0 +1,36 @@
+upstream docker-{{ site.name }} {
+	server {{ site.name }}:{{ site.port }};
+}
+
+server {
+	listen 80;
+	# We add an extra server name with the suffix "-tst" to be able to have an
+	# extra environment where we can test this stuff before deploying it to
+	# a production environment.
+	server_name {{ site.name }}.{{ domain }} {{ site.name }}-tst.{{ domain }};
+	server_tokens off;
+
+	location / {
+		return 301 https://$host$request_uri;
+	}
+}
+
+server {
+	listen 443 ssl;
+	# We add an extra server name with the suffix "-tst" to be able to have an
+	# extra environment where we can test this stuff before deploying it to
+	# a production environment.
+	server_name {{ site.name }}.{{ domain }} {{ site.name }}-tst.{{ domain }};
+	server_tokens off;
+
+	ssl_certificate /var/ssl/self-signed/certs/{{ site.name }}.{{ domain }}.crt;
+	ssl_certificate_key /var/ssl/self-signed/private/{{ site.name }}.{{ domain }}.pem;
+	
+	include /etc/letsencrypt/options-ssl-nginx.conf;
+	ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+	location / {
+		proxy_pass         http://docker-{{ site.name }};
+		proxy_redirect     off;
+	}
+}

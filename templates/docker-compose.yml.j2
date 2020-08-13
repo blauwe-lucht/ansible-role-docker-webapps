@@ -1,0 +1,42 @@
+version: "2.4"
+services:
+  reverseproxy:
+    image: blauwelucht/reverse-proxy:v1.0
+    container_name: {{ docker_webapps_reverse_proxy_container_name }}
+    volumes:
+      - /var/lib/certbot/conf:/etc/letsencrypt
+      - /var/lib/certbot/www:/var/www/certbot
+      # We use a shared directory for nginx/conf.d so each site can add its own conf in there.
+      # Don't forget to restart nginx after adding a new site!
+      - /var/lib/nginx/conf.d:/etc/nginx/conf.d
+      # Volume for self-signed certificates
+      - /var/ssl/self-signed:/var/ssl/self-signed
+    ports:
+      - 80:80
+      - 443:443
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    container_name: {{ docker_webapps_certbot_renew_container_name }}
+    restart: unless-stopped
+    volumes:
+      - /var/lib/certbot/conf:/etc/letsencrypt
+      - /var/lib/certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+{% for webapp in docker_webapps %}
+  {{ webapp.name }}:
+    depends_on:
+      - reverseproxy
+    image: {{ webapp.docker_image }}
+    container_name: {{ webapp.name }}
+    restart: unless-stopped
+{% if webapp.volumes is defined %}
+    volumes:
+{% for volume in webapp.volumes %}
+      - {{ volume }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
