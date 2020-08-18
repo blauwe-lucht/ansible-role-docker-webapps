@@ -4,7 +4,9 @@ dependencies: []
 galaxy_info:
   role_name: docker_webapps
   author: blauwe-lucht
-  description: Role to run multiple webapps on https on a single Docker host, signed with self-signed or Let's Encrypt certificates.
+  description: >-
+    Role to run multiple webapps on https on a single Docker host, 
+    signed with self-signed or Let's Encrypt certificates.
   company: Blauwe Lucht
 
   license: BSD
