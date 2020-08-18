@@ -10,6 +10,11 @@ server {
 	server_name {{ site.name }}.{{ domain }} {{ site.name }}-tst.{{ domain }};
 	server_tokens off;
 
+	# This config needs to be able to reply to the Let's Encrypt challenge:
+	location /.well-known/acme-challenge/ {
+		root /var/www/certbot;
+	}
+
 	location / {
 		return 301 https://$host$request_uri;
 	}
