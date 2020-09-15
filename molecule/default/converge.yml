@@ -1,7 +1,90 @@
 ---
 - name: Converge
   hosts: all
+  vars:
+    docker_webapps:
+    - name: samtris
+      docker_image: blauwelucht/samtris:v2.0
+      port: 8080
+    - name: oogdesmeesters
+      docker_image: ongoonku/oogdesmeestersjs:1.0
+      port: 8080
+    docker_webapps_use_lets_encrypt: false
+    docker_webapps_domain_name: blauwe-lucht.nl
+    docker_webapps_email_address: info@blauwelucht.nl
+    docker_webapps_organization_name: Blauwe Lucht
+
   tasks:
-    - name: "Include docker-webapp"
-      include_role:
-        name: "docker-webapp"
+  # From https://raw.githubusercontent.com/geerlingguy/ansible-role-docker/master/molecule/default/converge.yml
+  - name: Update apt cache.
+    apt: update_cache=yes cache_valid_time=600
+    when: ansible_os_family == 'Debian'
+
+  - name: Wait for systemd to complete initialization.  # noqa 303
+    command: systemctl is-system-running
+    register: systemctl_status
+    until: >
+      'running' in systemctl_status.stdout or
+      'degraded' in systemctl_status.stdout
+    retries: 30
+    delay: 5
+    when: ansible_service_mgr == 'systemd'
+    changed_when: false
+    failed_when: systemctl_status.rc > 1
+
+  # From https://www.digitalocean.com/community/tutorials/how-to-use-ansible-to-install-and-set-up-docker-on-ubuntu-18-04
+  - name: Install aptitude using apt.
+    apt:
+      name: aptitude
+      state: latest
+      update_cache: yes
+      cache_valid_time: 3600
+      force_apt_get: yes
+
+  - name: Install required system packages.
+    apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - gnupg2
+        - python3-pip
+        - virtualenv
+        - python3-setuptools
+      state: latest
+      update_cache: yes
+      cache_valid_time: 3600
+
+  - name: Add Docker GPG apt key.
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+      state: present
+
+  - name: Add Docker repository.
+    apt_repository:
+      repo: deb https://download.docker.com/linux/ubuntu bionic stable
+      state: present
+    register: add_repo_status
+
+  - name: Force apt update after adding Docker repository.
+    apt:
+      update_cache: yes
+    when: add_repo_status.changed
+
+  - name: Install docker-ce-cli.
+    apt:
+      name: docker-ce-cli
+      state: latest
+
+  - name: Install docker module for Python.
+    pip:
+      name: docker
+
+  - name: Install docker-compose module for Python.
+    pip:
+      # Installing the latest version gives me the error that ffi.h does not exist, using version 1.23 fixes that.
+      name: docker-compose==1.23
+
+  - name: Run role under test.
+    include_role:
+      name: ansible-role-docker-webapps
+

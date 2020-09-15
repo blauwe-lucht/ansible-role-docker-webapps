@@ -1,0 +1,24 @@
+---
+- name: Cleanup
+  hosts: 127.0.0.1
+  connection: local
+  tasks:
+  - name: Stop and remove containers created by role.
+    docker_container:
+      name: "{{ item }}"
+      state: absent
+    with_items:
+    - oogdesmeesters
+    - samtris
+    - docker-webapps-certbot-renew
+    - docker-webapps-reverse-proxy
+
+  - name: Remove shared directories.
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - /var/lib/certbot/conf
+      - /var/lib/certbot/www
+      - /var/lib/nginx/conf.d
+      - /var/ssl/self-signed

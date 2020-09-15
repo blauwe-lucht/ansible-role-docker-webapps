@@ -5,9 +5,22 @@ driver:
   name: docker
 platforms:
   - name: instance
-    image: docker.io/pycontribs/centos:7
+    image: geerlingguy/docker-ubuntu1804-ansible:latest
+    command: ""
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Volumes can't map onto directories within Docker? To work around that, 
+      # map the directories that will be mapped to a host directory.
+      - /var/lib/certbot/conf:/var/lib/certbot/conf
+      - /var/lib/certbot/www:/var/lib/certbot/www
+      - /var/lib/nginx/conf.d:/var/lib/nginx/conf.d
+      - /var/ssl/self-signed:/var/ssl/self-signed
+    privileged: true
     pre_build_image: true
 provisioner:
   name: ansible
+  playbooks:
+    cleanup: cleanup.yml
 verifier:
   name: ansible
