@@ -1,0 +1,59 @@
+# Prepare things only necessary in Ubuntu Docker-in-Docker scenario
+- name: Prepare
+  hosts: all
+  tasks:
+
+  - name: Log on which Linux distro Docker is going to be installed
+    debug:
+      msg: "The distro is: {{ ansible_distribution|lower }} and the version name is: {{ ansible_distribution_release|lower }}"
+
+  - name: Install packages needed to add Docker repository later (see https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository)
+    apt:
+      pkg:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg-agent
+        - software-properties-common
+      state: latest
+      update_cache: true
+
+  - name: Add Docker apt key
+    apt_key:
+      url: https://download.docker.com/linux/{{ ansible_distribution|lower }}/gpg
+      id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+      state: present
+    ignore_errors: true
+
+  - name: Add Docker apt repo
+    apt_repository:
+      repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution|lower }} {{ ansible_lsb.codename }} stable"
+      state: present
+      mode: '600'
+
+  - name: Install Docker packages as described in https://docs.docker.com/engine/install/ubuntu/#install-docker-engine
+    apt:
+      pkg:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+      state: latest
+      update_cache: true
+
+  - name: create /etc/docker
+    file:
+      state: directory
+      path: /etc/docker
+
+  - name: set storage-driver to vfs via daemon.json
+    copy:
+      content: |
+        {
+          "storage-driver": "vfs"
+        }
+      dest: /etc/docker/daemon.json
+      mode: '600'
+
+  # ...since we need to start Docker in a complete different way
+  - name: start Docker daemon inside container see https://stackoverflow.com/a/43088716/4964553
+    shell: "/usr/bin/dockerd -H unix:///var/run/docker.sock > dockerd.log 2>&1 &"
