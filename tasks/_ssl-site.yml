@@ -55,31 +55,18 @@
       domain: "{{ docker_webapps_domain_name }}"
     register: copy_conf_result
 
-  - name: Add container to inventory.
-    add_host:
-      name: "{{ docker_webapps_reverse_proxy_container_name }}"
-      ansible_connection: docker
-    changed_when: false
-    when: openssl_certificate_result.changed or copy_conf_result.changed
-
-  - name: Get info on nginx container.
-    docker_container_info:
-      name: "{{ docker_webapps_reverse_proxy_container_name }}"
-    register: docker_info_result
-
   - name: Check nginx config ({{ site.name }}).
-    delegate_to: "{{ docker_webapps_reverse_proxy_container_name }}"
-    raw: nginx -t
+    command:
+      cmd: "docker exec {{ docker_webapps_reverse_proxy_container_name }} nginx -t"
     when: openssl_certificate_result.changed or copy_conf_result.changed
 
   - name: Restart nginx ({{ site.name }}).
-    delegate_to: "{{ docker_webapps_reverse_proxy_container_name }}"
-    raw: nginx -s reload
+    command:
+      cmd: "docker exec {{ docker_webapps_reverse_proxy_container_name }} nginx -s reload"
     when: openssl_certificate_result.changed or copy_conf_result.changed
 
   - name: Wait for nginx ({{ site.name }}).
-    wait_for: 
-      host: docker_info_result.container.NetworkSettings.IPAddress
+    wait_for:
       port: 80
       timeout: 30
 
