@@ -10,8 +10,8 @@
       docker_image: ongoonku/oogdesmeestersjs:1.0
       port: 8080
     docker_webapps_use_lets_encrypt: false
-    docker_webapps_domain_name: blauwe-lucht.nl
-    docker_webapps_email_address: info@blauwelucht.nl
+    docker_webapps_domain_name: molecule.local
+    docker_webapps_email_address: info@molecule.local
     docker_webapps_organization_name: Blauwe Lucht
 
   tasks:
