@@ -57,3 +57,15 @@
   # ...since we need to start Docker in a complete different way
   - name: start Docker daemon inside container see https://stackoverflow.com/a/43088716/4964553
     shell: "/usr/bin/dockerd -H unix:///var/run/docker.sock > dockerd.log 2>&1 &"
+
+  # We add host entries to the websites otherwise ansible url does not work (even with Host header).
+  - name: add host entries
+    lineinfile:
+      dest: /etc/hosts
+      line: "{{ item }}"
+      # unsafe_writes are needed because you can't copy over /etc/hosts, see https://github.com/moby/moby/issues/22281
+      unsafe_writes: yes
+    with_items: 
+    - "127.0.0.1 samtris.molecule.local"
+    - "127.0.0.1 oogdesmeesters.molecule.local"
+
