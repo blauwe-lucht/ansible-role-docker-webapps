@@ -1,9 +1,65 @@
 ---
-# This is an example playbook to execute Ansible tests.
 
 - name: Verify
   hosts: all
   tasks:
-  - name: Example assertion
+  - name: Check samtris HTTP redirect.
+    uri:
+      url: http://samtris.molecule.local/
+      follow_redirects: none
+      status_code: 301
+
+  - name: Check samtris HTTPS GET.
+    uri:
+      url: https://samtris.molecule.local/
+      validate_certs: no
+      status_code: 200
+
+  - name: Write samtris body to file.
+    get_url:
+      url: https://samtris.molecule.local/
+      dest: /tmp/samtris-body.html
+      force: yes
+      validate_certs: no
+      mode: 644
+
+  - name: Get samtris body.
+    command:
+      cmd: cat /tmp/samtris-body.html
+    register: cat_result
+    changed_when: false
+
+  - name: Assert body.
     assert:
-      that: true
+      that: "'TETRISJS' in cat_result.stdout"
+
+  - name: Check oogdesmeesters HTTP redirect.
+    uri:
+      url: http://oogdesmeesters.molecule.local/
+      follow_redirects: none
+      status_code: 301
+
+  - name: Check oogdesmeesters HTTPS GET.
+    uri:
+      url: https://oogdesmeesters.molecule.local/
+      validate_certs: no
+      status_code: 200
+
+  - name: Write oogdesmeesters body to file.
+    get_url:
+      url: https://oogdesmeesters.molecule.local/
+      dest: /tmp/oogdesmeesters-body.html
+      force: yes
+      validate_certs: no
+      mode: 644
+
+  - name: Get oogdesmeesters body.
+    command:
+      cmd: cat /tmp/oogdesmeesters-body.html
+    register: cat_result
+    changed_when: false
+
+  - name: Assert body.
+    assert:
+      that: "'Oog des Meesters' in cat_result.stdout"
+
