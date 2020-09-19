@@ -62,4 +62,3 @@
   - name: Assert body.
     assert:
       that: "'Oog des Meesters' in cat_result.stdout"
-
