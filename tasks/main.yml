@@ -38,11 +38,13 @@
     file:
       path: /root/webapps
       state: directory
+      mode: 0755
 
   - name: Generate Docker Compose file for websites.
     template:
       src: docker-compose.yml.j2
       dest: /root/webapps/docker-compose.yml
+      mode: 0644
 
   - name: Create and run web applications using Docker Compose.
     docker_compose:

@@ -54,8 +54,8 @@
       dest: /etc/docker/daemon.json
       mode: '600'
 
-  # ...since we need to start Docker in a complete different way
-  - name: start Docker daemon inside container see https://stackoverflow.com/a/43088716/4964553
+  # ...since we need to start Docker in a completely different way, see https://stackoverflow.com/a/43088716/4964553
+  - name: start Docker daemon inside container 
     shell: "/usr/bin/dockerd -H unix:///var/run/docker.sock > dockerd.log 2>&1 &"
 
   # We add host entries to the websites otherwise ansible url does not work (even with Host header).

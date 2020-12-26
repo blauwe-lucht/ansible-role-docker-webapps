@@ -51,6 +51,7 @@
     template:
       src: nginx/site-self-signed-ssl.conf.j2
       dest: /var/lib/nginx/conf.d/{{ fqdn }}.conf
+      mode: 0644
     vars:
       domain: "{{ docker_webapps_domain_name }}"
     register: copy_conf_result
@@ -101,6 +102,7 @@
     template:
       src: nginx/site-ssl.conf.j2
       dest: /var/lib/nginx/conf.d/{{ fqdn }}.conf
+      mode: 0644
     vars:
       domain: "{{ docker_webapps_domain_name }}"
     register: copy_ssl_config_result
